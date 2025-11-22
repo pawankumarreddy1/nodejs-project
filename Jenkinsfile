@@ -1,24 +1,15 @@
 pipeline {
     agent any
 
-    // Define tools
-    tools {
-        nodejs "NodeJS-18"   // Name you configured in Jenkins NodeJS Tool
-    }
-
-    // Global environment variables
     environment {
-        IMAGE_NAME = "pawankumarreddy1/nodejs-project"  // Docker image name
-        IMAGE_TAG = "latest"
-        BUCKET_NAME = "${env.BUCKET_NAME}"  // Optional, if set in Jenkins Global Properties
-        DB_URL = "${env.DB_URL}"           // Optional
+        IMAGE_NAME = "nodejs-project-local"
+        IMAGE_TAG  = "latest"
+        PORT = "3000"
     }
 
     stages {
-
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                // Checkout main branch from your repo
                 git branch: 'main', 
                     url: 'https://github.com/pawankumarreddy1/nodejs-project.git'
             }
@@ -30,49 +21,35 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            steps {
-                // Run tests if any
-                sh 'npm test || echo "No tests found"'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
+                sh "docker build -t $IMAGE_NAME:$IMAGE_TAG ."
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                // Stop previous container if exists
                 sh """
-                docker build -t $IMAGE_NAME:$IMAGE_TAG .
+                if [ \$(docker ps -q -f name=$IMAGE_NAME) ]; then
+                    docker stop $IMAGE_NAME
+                    docker rm $IMAGE_NAME
+                fi
                 """
-            }
-        }
 
-        stage('Push Docker Image') {
-            steps {
-                // Requires DockerHub credentials configured in Jenkins
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
-                                                 usernameVariable: 'USERNAME', 
-                                                 passwordVariable: 'PASSWORD')]) {
-                    sh """
-                    echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                    docker push $IMAGE_NAME:$IMAGE_TAG
-                    """
-                }
-            }
-        }
-
-        stage('Deploy (Optional)') {
-            steps {
-                // Here you can add deployment steps
-                echo "Deployment placeholder. You can deploy to Minikube / AWS / Cloud Run."
+                // Run the container
+                sh "docker run -d -p $PORT:$PORT --name $IMAGE_NAME $IMAGE_NAME:$IMAGE_TAG"
             }
         }
     }
 
     post {
         success {
-            echo "Build and Docker image creation succeeded!"
+            echo "Node.js app is running in a local Docker container on port $PORT 🚀"
         }
         failure {
-            echo "Build failed. Check console output for details."
+            echo "Build or deployment failed. Check logs."
         }
     }
 }
+

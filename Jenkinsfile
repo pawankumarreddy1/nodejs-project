@@ -1,14 +1,12 @@
 pipeline {
-    agent any
-
-    tools {
-        nodejs "NodeJS-18"  // Name you configured in Jenkins
+    agent {
+        docker { image 'node:18' }
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/pawankumarreddy1/nodejs-project.git'
+                git 'https://github.com/pawankumarreddy1/nodejs-project.git'
             }
         }
 
@@ -34,4 +32,14 @@ pipeline {
             }
         }
     }
+
+    post {
+        success {
+            echo "Node.js app running in Docker container locally on port 3000 🚀"
+        }
+        failure {
+            echo "Build or deployment failed."
+        }
+    }
 }
+
